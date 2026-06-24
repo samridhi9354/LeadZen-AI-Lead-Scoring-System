@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Analyze Leads — LeadZen</title>
+<link rel="stylesheet" href="css/global.css" />
+<style>
+.page-header {
+  padding: 3.5rem 0 2.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.page-header-inner {
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+}
+.page-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; }
+.page-desc  { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.35rem; }
+
+/* Upload zone */
+.analyze-layout {
+  display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem;
+  padding: 2rem 0;
+  align-items: start;
+}
+.analyze-layout > *:first-child { min-width: 0; }
+.upload-zone {
+  border: 2px dashed var(--border-default);
+  border-radius: var(--r-xl); padding: 3.5rem 2rem;
+  text-align: center; cursor: pointer; transition: all var(--t-mid);
+  background: var(--card-bg); position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--brand); background: var(--brand-glow);
+}
+.upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-zone-icon {
+  width: 64px; height: 64px; border-radius: var(--r-lg);
+  background: rgba(26,108,255,0.1); border: 1px solid rgba(26,108,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin: 0 auto 1.2rem;
+}
+.upload-zone-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 0.4rem; }
+.upload-zone-sub   { color: var(--text-secondary); font-size: 0.85rem; }
+.upload-tags { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 1.1rem; }
+.upload-tag {
+  background: var(--bg-raised); border: 1px solid var(--border-default);
+  border-radius: 5px; padding: 3px 9px;
+  font-size: 0.72rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace;
+}
+.file-selected {
+  display: none; margin-top: 1rem;
+  background: var(--success-soft); border: 1px solid rgba(16,185,129,0.2);
+  border-radius: var(--r-md); padding: 10px 14px;
+  font-size: 0.84rem; color: var(--success);
+  align-items: center; gap: 8px;
+}
+.file-selected.visible { display: flex; }
+
+/* Config sidebar */
+.config-sidebar { display: flex; flex-direction: column; gap: 1rem; }
+.config-panel {
+  background: var(--card-bg); border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xl); padding: 1.3rem;
+}
+.config-panel-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 0.9rem; }
+.config-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border-subtle); }
+.config-row:last-child { border-bottom: none; }
+.config-key { font-size: 0.8rem; color: var(--text-secondary); }
+.config-val { font-size: 0.8rem; font-weight: 600; }
+.status-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  font-size: 0.72rem; font-weight: 600;
+}
+.status-online  { background: var(--success-soft); color: var(--success); }
+.status-offline { background: var(--hot-soft); color: var(--hot); }
+.status-demo    { background: var(--warm-soft); color: var(--warm); }
+
+/* Error */
+.error-msg {
+  display: none; margin-top: 0.8rem;
+  background: var(--hot-soft); border: 1px solid var(--hot-border);
+  border-radius: var(--r-md); padding: 10px 14px;
+  font-size: 0.84rem; color: var(--hot);
+  align-items: center; gap: 8px;
+}
+.error-msg.visible { display: flex; }
+
+/* Results area */
+#results-area { display: none; }
+#results-area.visible { display: block; }
+
+.results-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem;
+  padding: 1.5rem 0 1rem;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 1rem;
+}
+.results-topbar-title { font-size: 1.1rem; font-weight: 800; }
+.results-topbar-actions { display: flex; gap: 0.6rem; align-items: center; }
+
+/* Summary strip */
+.summary-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;
+}
+.sum-card {
+  background: var(--card-bg); border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg); padding: 1.2rem 1.4rem;
+  position: relative; overflow: hidden;
+}
+.sum-card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 3px 3px 0 0;
+}
+.sum-card-total::after  { background: linear-gradient(90deg, var(--brand), #818cf8); }
+.sum-card-hot::after    { background: var(--hot); }
+.sum-card-warm::after   { background: var(--warm); }
+.sum-card-cold::after   { background: var(--cold); }
+.sum-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 0.4rem; }
+.sum-value { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1; margin-bottom: 0.25rem; }
+.sum-card-total .sum-value { color: var(--text-primary); }
+.sum-card-hot  .sum-value  { color: var(--hot); }
+.sum-card-warm .sum-value  { color: var(--warm); }
+.sum-card-cold .sum-value  { color: var(--cold); }
+.sum-pct { font-size: 0.78rem; color: var(--text-tertiary); }
+
+/* Dist bar */
+.dist-bar-section {
+  background: var(--card-bg); border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg); padding: 1.2rem 1.4rem;
+  margin-bottom: 1.5rem;
+}
+.dist-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9rem; }
+.dist-bar-legend { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.dist-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-secondary); }
+.dist-legend-dot  { width: 8px; height: 8px; border-radius: 50%; }
+.dist-bar-track   { display: flex; height: 10px; border-radius: var(--r-pill); overflow: hidden; gap: 2px; }
+.dist-bar-seg     { height: 100%; transition: width 1.2s cubic-bezier(.4,0,.2,1); border-radius: var(--r-pill); }
+.dist-bar-row     { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.74rem; color: var(--text-tertiary); }
+
+/* Filter row */
+.filter-bar { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+.filter-pill {
+  padding: 5px 14px; border-radius: var(--r-pill);
+  background: var(--card-bg); border: 1px solid var(--border-default);
+  font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);
+  cursor: pointer; transition: all var(--t-fast);
+}
+.filter-pill:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.filter-pill.active-all  { background: rgba(26,108,255,0.1); border-color: rgba(26,108,255,0.3); color: var(--brand); }
+.filter-pill.active-hot  { background: var(--hot-soft);  border-color: var(--hot-border);  color: var(--hot); }
+.filter-pill.active-warm { background: var(--warm-soft); border-color: var(--warm-border); color: var(--warm); }
+.filter-pill.active-cold { background: var(--cold-soft); border-color: var(--cold-border); color: var(--cold); }
+.search-wrap { flex: 1; min-width: 180px; position: relative; }
+.search-ico  { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-tertiary); }
+.search-box  { width: 100%; padding: 6px 12px 6px 30px; background: var(--input-bg); border: 1px solid var(--border-default); border-radius: var(--r-pill); font-family: inherit; font-size: 0.82rem; color: var(--text-primary); outline: none; transition: border-color var(--t-fast); }
+.search-box:focus { border-color: var(--brand); }
+.search-box::placeholder { color: var(--text-tertiary); }
+
+/* Results table wrapper */
+.table-card { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); overflow: hidden; }
+.table-card-header { padding: 1rem 1.4rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; }
+.table-card-title  { font-size: 0.9rem; font-weight: 700; }
+.table-count { font-size: 0.78rem; background: var(--bg-raised); border: 1px solid var(--border-subtle); border-radius: var(--r-pill); padding: 2px 10px; color: var(--text-tertiary); }
+
+/* Company cell */
+.company-cell { display: flex; align-items: center; gap: 10px; }
+.company-avatar {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+.company-name { font-weight: 600; font-size: 0.855rem; }
+.company-industry { font-size: 0.72rem; color: var(--text-tertiary); }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; align-items: center; gap: 4px; padding: 1rem; border-top: 1px solid var(--border-subtle); }
+.pg-btn {
+  width: 32px; height: 32px; border-radius: var(--r-md);
+  background: var(--bg-raised); border: 1px solid var(--border-subtle);
+  color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all var(--t-fast);
+  display: flex; align-items: center; justify-content: center;
+}
+.pg-btn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.pg-btn.active { background: rgba(26,108,255,0.1); border-color: rgba(26,108,255,0.3); color: var(--brand); font-weight: 700; }
+.pg-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Detail modal */
+.modal-lead-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem;
+}
+.modal-avatar {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800; flex-shrink: 0;
+}
+.modal-prob-section { margin-bottom: 1.5rem; }
+.modal-prob-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 0.8rem; }
+.modal-prob-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.modal-prob-label { width: 40px; font-size: 0.8rem; color: var(--text-secondary); }
+.modal-prob-track { flex: 1; height: 8px; background: var(--bg-overlay); border-radius: 4px; overflow: hidden; }
+.modal-prob-fill  { height: 100%; border-radius: 4px; }
+.modal-prob-pct   { width: 38px; text-align: right; font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+.modal-fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.modal-field-item { padding: 0.7rem; background: var(--bg-raised); border-radius: var(--r-md); }
+.modal-field-key  { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 3px; }
+.modal-field-val  { font-size: 0.85rem; font-weight: 600; }
+
+@media (max-width: 900px) {
+  .analyze-layout { grid-template-columns: 1fr; }
+  .summary-strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .summary-strip { grid-template-columns: 1fr 1fr; }
+  .data-table th:nth-child(n+5), .data-table td:nth-child(n+5) { display: none; }
+  .modal-fields-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="page-wrapper">
+
+<div class="page-header">
+  <div class="container">
+    <div class="page-header-inner">
+      <div>
+        <h1 class="page-title">Analyze Leads</h1>
+        <div class="page-desc">Upload your CSV and get instant AI-powered lead scoring</div>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-chip-dot"></span>
+        <span class="stat-chip-live" id="serverStatus">Checking server…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="analyze-layout">
+    <!-- LEFT: Upload -->
+    <div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".csv" />
+        <div class="upload-zone-icon">📊</div>
+        <div class="upload-zone-title">Drop your CSV file here</div>
+        <div class="upload-zone-sub">or click to browse files from your computer</div>
+        <div class="upload-tags">
+          <span class="upload-tag">Company Name</span>
+          <span class="upload-tag">Industry</span>
+          <span class="upload-tag">Budget Range</span>
+          <span class="upload-tag">Hours Wasted/Week</span>
+          <span class="upload-tag">Demo Requested</span>
+          <span class="upload-tag">+17 more</span>
+        </div>
+      </div>
+
+      <div class="file-selected" id="fileSelected">
+        <span>✅</span><span id="fileSelectedText"></span>
+      </div>
+      <div class="error-msg" id="errorMsg">
+        <span>⚠️</span><span id="errorText"></span>
+      </div>
+
+      <div style="display:flex;gap:0.8rem;margin-top:1rem;flex-wrap:wrap">
+        <button class="btn btn-primary" id="analyzeBtn" onclick="runAnalysis()" style="flex:2;min-width:180px;padding:11px 20px;font-size:0.95rem">
+          <span class="spinner"></span>
+          <span class="btn-label">⚡ Analyze Leads</span>
+        </button>
+        <button class="btn btn-secondary" onclick="loadDemo()" style="flex:1;min-width:130px">
+          🎯 Load Demo
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Config -->
+    <div class="config-sidebar">
+      <div class="config-panel">
+        <div class="config-panel-title">Model Configuration</div>
+        <div class="config-row"><span class="config-key">Algorithm</span><span class="config-val">XGBoost</span></div>
+        <div class="config-row"><span class="config-key">Max Depth</span><span class="config-val font-mono">4</span></div>
+        <div class="config-row"><span class="config-key">Estimators</span><span class="config-val font-mono">300</span></div>
+        <div class="config-row"><span class="config-key">Learning Rate</span><span class="config-val font-mono">0.1</span></div>
+        <div class="config-row"><span class="config-key">Subsample</span><span class="config-val font-mono">1.0</span></div>
+        <div class="config-row"><span class="config-key">Col Sample</span><span class="config-val font-mono">0.6</span></div>
+      </div>
+      <div class="config-panel">
+        <div class="config-panel-title">Performance</div>
+        <div class="config-row"><span class="config-key">Overall Accuracy</span><span class="config-val text-success">91.5%</span></div>
+        <div class="config-row"><span class="config-key">Hot Recall</span><span class="config-val" style="color:var(--hot)">95%</span></div>
+        <div class="config-row"><span class="config-key">Cold Precision</span><span class="config-val" style="color:var(--cold)">98%</span></div>
+        <div class="config-row"><span class="config-key">Warm F1</span><span class="config-val" style="color:var(--warm)">0.87</span></div>
+        <div class="config-row"><span class="config-key">Training Set</span><span class="config-val">10,000 leads</span></div>
+      </div>
+      <div class="config-panel">
+        <div class="config-panel-title">API Status</div>
+        <div class="config-row"><span class="config-key">Endpoint</span><span class="config-val font-mono" style="font-size:0.72rem">localhost:5000</span></div>
+        <div class="config-row"><span class="config-key">Status</span><span id="apiStatusChip" class="status-chip status-offline">● Offline</span></div>
+        <div class="config-row"><span class="config-key">Mode</span><span id="apiMode" class="config-val">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-area">
+    <div class="results-topbar">
+      <div class="results-topbar-title">📊 Analysis Results <span class="text-faint" id="resultsFilename" style="font-weight:400;font-size:0.85rem"></span></div>
+      <div class="results-topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="downloadCSV()">⬇ Export CSV</button>
+        <button class="btn btn-ghost btn-sm"     onclick="clearResults()">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-strip">
+      <div class="sum-card sum-card-total">
+        <div class="sum-label">Total Leads</div>
+        <div class="sum-value" id="sumTotal">0</div>
+        <div class="sum-pct">Analyzed</div>
+      </div>
+      <div class="sum-card sum-card-hot">
+        <div class="sum-label">🔥 Hot</div>
+        <div class="sum-value" id="sumHot">0</div>
+        <div class="sum-pct" id="sumHotPct">—</div>
+      </div>
+      <div class="sum-card sum-card-warm">
+        <div class="sum-label">🌡️ Warm</div>
+        <div class="sum-value" id="sumWarm">0</div>
+        <div class="sum-pct" id="sumWarmPct">—</div>
+      </div>
+      <div class="sum-card sum-card-cold">
+        <div class="sum-label">❄️ Cold</div>
+        <div class="sum-value" id="sumCold">0</div>
+        <div class="sum-pct" id="sumColdPct">—</div>
+      </div>
+    </div>
+
+    <!-- Dist bar -->
+    <div class="dist-bar-section">
+      <div class="dist-bar-header">
+        <div style="font-size:0.88rem;font-weight:700">Lead Distribution</div>
+        <div class="dist-bar-legend">
+          <div class="dist-legend-item"><div class="dist-legend-dot" style="background:var(--hot)"></div>Hot</div>
+          <div class="dist-legend-item"><div class="dist-legend-dot" style="background:var(--warm)"></div>Warm</div>
+          <div class="dist-legend-item"><div class="dist-legend-dot" style="background:var(--cold)"></div>Cold</div>
+        </div>
+      </div>
+      <div class="dist-bar-track">
+        <div class="dist-bar-seg" id="dbarHot"  style="background:var(--hot);width:0%"></div>
+        <div class="dist-bar-seg" id="dbarWarm" style="background:var(--warm);width:0%"></div>
+        <div class="dist-bar-seg" id="dbarCold" style="background:var(--cold);width:0%"></div>
+      </div>
+      <div class="dist-bar-row">
+        <span id="dbarHotLbl">Hot 0%</span>
+        <span id="dbarWarmLbl">Warm 0%</span>
+        <span id="dbarColdLbl">Cold 0%</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+      <button class="filter-pill active-all" id="fpAll"  onclick="setFilter('All',this)">All</button>
+      <button class="filter-pill"            id="fpHot"  onclick="setFilter('Hot',this)">🔥 Hot</button>
+      <button class="filter-pill"            id="fpWarm" onclick="setFilter('Warm',this)">🌡️ Warm</button>
+      <button class="filter-pill"            id="fpCold" onclick="setFilter('Cold',this)">❄️ Cold</button>
+      <div class="search-wrap">
+        <span class="search-ico">🔍</span>
+        <input class="search-box" type="text" id="searchBox" placeholder="Search company…" oninput="applyFilters()">
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">Lead Intelligence Report</div>
+        <div class="table-count" id="tableCount">0 results</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company</th>
+              <th>Cohort</th>
+              <th>Confidence</th>
+              <th>Revenue</th>
+              <th>Location</th>
+              <th>Timeline</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div><!-- /results -->
+</div>
+
+</div><!-- /page-wrapper -->
+<div id="footer-placeholder"></div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-backdrop" id="detailModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-head-title" id="modalCompanyName">Lead Details</div>
+      <button class="modal-close-btn" data-modal-close>✕</button>
+    </div>
+    <div style="padding:1.5rem" id="modalContent"></div>
+  </div>
+</div>
+
+<script src="js/shared.js"></script>
+<script src="js/layout.js"></script>
+<script>
+NavFooter.render('analyze');
+
+const API = 'http://localhost:5000';
+let allResults = [], filtered = [], currentFilter = 'All', page = 1;
+const PAGE = 20;
+
+// Check API health
+async function checkAPI() {
+  try {
+    const r = await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('apiStatusChip').className = 'status-chip status-online';
+      document.getElementById('apiStatusChip').textContent = '● Online';
+      document.getElementById('apiMode').textContent = d.mode || 'PRE-TRAINED';
+      document.getElementById('serverStatus').textContent = 'API Online · XGBoost Ready';
+    }
+  } catch {
+    document.getElementById('apiStatusChip').className = 'status-chip status-demo';
+    document.getElementById('apiStatusChip').textContent = '● Demo Mode';
+    document.getElementById('apiMode').textContent = 'Demo';
+    document.getElementById('serverStatus').textContent = 'Demo Mode (no server)';
+  }
+}
+checkAPI();
+
+// File handling
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; showFile(f); }
+});
+document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) showFile(e.target.files[0]); });
+function showFile(f) {
+  document.getElementById('fileSelectedText').textContent = `${f.name} — ${(f.size/1024).toFixed(1)} KB ready`;
+  document.getElementById('fileSelected').classList.add('visible');
+  hideError();
+}
+
+async function runAnalysis() {
+  const fi = document.getElementById('fileInput');
+  if (!fi.files[0]) { showError('Please select a CSV file first, or click "Load Demo".'); return; }
+  const btn = document.getElementById('analyzeBtn');
+  btn.classList.add('loading'); btn.disabled = true; hideError();
+  const form = new FormData();
+  form.append('file', fi.files[0]);
+  try {
+    const res = await fetch(`${API}/api/predict`, { method: 'POST', body: form });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Server error');
+    renderResults(d.results, d.distribution, d.total, d.filename);
+    Toast.show('Analysis complete', 'success', `${d.total} leads scored`);
+  } catch(e) {
+    showError(`Backend not reachable: ${e.message}. Click "Load Demo" to preview with sample data.`);
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+function loadDemo() {
+  const companies = ['Apex Solutions','BrightWave Tech','ClearPath AI','DeltaSync Corp',
+    'EchoVault Inc','FutureLabs','GrowthHive','HorizonCore','InnovateCo','JetStream',
+    'KeyLogic','LaunchPad Pro','MomentumAI','NexaGroup','Orion Systems',
+    'PeakFlow Ltd','QuantumEdge','RiseForce','ScaleUp Ltd','TurboLead',
+    'UltraMetrics','VelocityX','WarpDrive','XcelData','YieldMaster',
+    'ZenTech','AlphaBase','BetaWorks','CloudFirst','DataPulse'];
+  const inds = ['SaaS','Healthcare','Finance','Legal','E-Commerce','Manufacturing','Real Estate','Education'];
+  const locs = ['North America','Europe','LATAM','Asia-Pacific','Middle East'];
+  const revs = ['<$1M','$1M-$5M','$5M-$20M','$20M-$100M','$100M+'];
+  const tls  = ['Immediate','1-3 month','3-6 month','Later'];
+  const pool = ['Hot','Hot','Hot','Hot','Warm','Warm','Warm','Cold','Cold','Cold'];
+  const results = companies.map((name,i) => {
+    const cohort = pool[i % pool.length];
+    const conf = cohort==='Hot'?75+Math.random()*23:cohort==='Warm'?60+Math.random()*22:65+Math.random()*25;
+    return {
+      id:i+1, company_name:name, predicted_cohort:cohort,
+      confidence: Math.round(conf*10)/10,
+      prob_hot:  cohort==='Hot'  ? Math.round(conf*10)/10 : Math.round(Math.random()*20*10)/10,
+      prob_warm: cohort==='Warm' ? Math.round(conf*10)/10 : Math.round(Math.random()*25*10)/10,
+      prob_cold: cohort==='Cold' ? Math.round(conf*10)/10 : Math.round(Math.random()*18*10)/10,
+      industry: inds[i%inds.length], company_size: ['1-10','11-50','51-200','201-500'][i%4],
+      annual_revenue: revs[i%revs.length], location: locs[i%locs.length],
+      budget_range: `${(Math.floor(Math.random()*90)+10)*1000}`,
+      hours_wasted: Math.floor(Math.random()*80)+5,
+      demo_requested: Math.random()>0.5?'Yes':'No',
+      decision_authority: Math.random()>0.5?'Yes':'No',
+      timeline: tls[i%tls.length], actual_cohort: null
+    };
+  });
+  const dist = {Hot:0,Warm:0,Cold:0};
+  results.forEach(r=>dist[r.predicted_cohort]++);
+  renderResults(results, dist, results.length, 'demo_sample.csv');
+  document.getElementById('fileSelectedText').textContent = 'demo_sample.csv — 30 sample records';
+  document.getElementById('fileSelected').classList.add('visible');
+  Toast.show('Demo data loaded', 'info', '30 sample leads ready');
+}
+
+function renderResults(results, dist, total, filename='') {
+  allResults = results;
+  currentFilter = 'All'; page = 1;
+  document.getElementById('resultsFilename').textContent = filename ? `· ${filename}` : '';
+  document.getElementById('sumTotal').textContent = total;
+  document.getElementById('sumHot').textContent  = dist.Hot;
+  document.getElementById('sumWarm').textContent = dist.Warm;
+  document.getElementById('sumCold').textContent = dist.Cold;
+  document.getElementById('sumHotPct').textContent  = pct(dist.Hot,total);
+  document.getElementById('sumWarmPct').textContent = pct(dist.Warm,total);
+  document.getElementById('sumColdPct').textContent = pct(dist.Cold,total);
+  const hp=+(dist.Hot/total*100).toFixed(1), wp=+(dist.Warm/total*100).toFixed(1), cp=+(dist.Cold/total*100).toFixed(1);
+  setTimeout(()=>{
+    document.getElementById('dbarHot').style.width  = hp+'%';
+    document.getElementById('dbarWarm').style.width = wp+'%';
+    document.getElementById('dbarCold').style.width = cp+'%';
+  },100);
+  document.getElementById('dbarHotLbl').textContent  = `Hot ${hp}%`;
+  document.getElementById('dbarWarmLbl').textContent = `Warm ${wp}%`;
+  document.getElementById('dbarColdLbl').textContent = `Cold ${cp}%`;
+  document.getElementById('results-area').classList.add('visible');
+  document.getElementById('results-area').scrollIntoView({behavior:'smooth',block:'start'});
+  applyFilters();
+}
+
+function pct(n, total) { return `${(n/total*100).toFixed(1)}% of total`; }
+
+let activeFilterBtn = null;
+function setFilter(f, btn) {
+  currentFilter = f; page = 1;
+  document.querySelectorAll('.filter-pill').forEach(b => b.className = 'filter-pill');
+  btn.classList.add(`active-${f.toLowerCase()}`);
+  applyFilters();
+}
+function applyFilters() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  filtered = allResults.filter(r => {
+    const mf = currentFilter==='All' || r.predicted_cohort===currentFilter;
+    const ms = !q || r.company_name.toLowerCase().includes(q);
+    return mf && ms;
+  });
+  page = 1; renderTable();
+}
+
+function renderTable() {
+  const start = (page-1)*PAGE;
+  const slice = filtered.slice(start, start+PAGE);
+  document.getElementById('tableCount').textContent = `${filtered.length} results`;
+  const avatarBg = { Hot:'rgba(244,63,94,0.15)', Warm:'rgba(245,158,11,0.15)', Cold:'rgba(6,182,212,0.12)' };
+  const avatarFg = { Hot:'var(--hot)', Warm:'var(--warm)', Cold:'var(--cold)' };
+  document.getElementById('tableBody').innerHTML = slice.map((r,i) => `
+    <tr>
+      <td class="text-faint">${start+i+1}</td>
+      <td>
+        <div class="company-cell">
+          <div class="company-avatar" style="background:${avatarBg[r.predicted_cohort]};color:${avatarFg[r.predicted_cohort]}">${r.company_name[0]}</div>
+          <div>
+            <div class="company-name">${r.company_name}</div>
+            <div class="company-industry">${r.industry}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge badge-${r.predicted_cohort.toLowerCase()}"><span class="badge-dot" style="background:${avatarFg[r.predicted_cohort]}"></span>${r.predicted_cohort}</span></td>
+      <td>
+        <div class="conf-bar">
+          <div class="conf-track"><div class="conf-fill" style="width:${r.confidence}%"></div></div>
+          <span class="conf-label">${r.confidence}%</span>
+        </div>
+      </td>
+      <td class="text-muted">${r.annual_revenue||'—'}</td>
+      <td class="text-muted">${r.location||'—'}</td>
+      <td class="text-muted">${r.timeline||'—'}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick='showDetail(${JSON.stringify(r).replace(/'/g,"&#39;")})'>View</button></td>
+    </tr>`).join('');
+  renderPagination();
+}
+
+function renderPagination() {
+  const total = Math.ceil(filtered.length/PAGE);
+  const pg = document.getElementById('pagination');
+  if (total<=1){pg.innerHTML='';return;}
+  let h = `<button class="pg-btn" onclick="changePage(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+  for(let i=1;i<=total;i++){
+    if(i===1||i===total||Math.abs(i-page)<=1) h+=`<button class="pg-btn ${i===page?'active':''}" onclick="changePage(${i})">${i}</button>`;
+    else if(Math.abs(i-page)===2) h+=`<span style="padding:0 4px;color:var(--text-tertiary)">…</span>`;
+  }
+  h+=`<button class="pg-btn" onclick="changePage(${page+1})" ${page===total?'disabled':''}>›</button>`;
+  pg.innerHTML = h;
+}
+function changePage(p) {
+  const max = Math.ceil(filtered.length/PAGE);
+  if(p<1||p>max)return;
+  page=p; renderTable();
+  document.querySelector('.table-card').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function showDetail(r) {
+  const fg = { Hot:'var(--hot)', Warm:'var(--warm)', Cold:'var(--cold)' };
+  const bg = { Hot:'rgba(244,63,94,0.15)', Warm:'rgba(245,158,11,0.15)', Cold:'rgba(6,182,212,0.12)' };
+  document.getElementById('modalCompanyName').textContent = r.company_name;
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-lead-header">
+      <div class="modal-avatar" style="background:${bg[r.predicted_cohort]};color:${fg[r.predicted_cohort]}">${r.company_name[0]}</div>
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:${fg[r.predicted_cohort]}">${r.predicted_cohort==='Hot'?'🔥':r.predicted_cohort==='Warm'?'🌡️':'❄️'} ${r.predicted_cohort} Lead</div>
+        <div style="font-size:0.82rem;color:var(--text-secondary)">${r.industry} · ${r.company_size} employees · ${r.location}</div>
+      </div>
+      <span class="badge badge-${r.predicted_cohort.toLowerCase()}" style="margin-left:auto">${r.confidence}% confidence</span>
+    </div>
+    <div class="modal-prob-section">
+      <div class="modal-prob-title">Probability Breakdown</div>
+      ${[['Hot','var(--hot)',r.prob_hot],['Warm','var(--warm)',r.prob_warm],['Cold','var(--cold)',r.prob_cold]].map(([lbl,clr,val])=>`
+        <div class="modal-prob-row">
+          <span class="modal-prob-label">${lbl}</span>
+          <div class="modal-prob-track"><div class="modal-prob-fill" style="width:${val}%;background:${clr}"></div></div>
+          <span class="modal-prob-pct">${val}%</span>
+        </div>`).join('')}
+    </div>
+    <div class="modal-fields-grid">
+      ${[
+        ['Annual Revenue', r.annual_revenue],
+        ['Budget Range', r.budget_range ? `$${Number(r.budget_range).toLocaleString()}` : '—'],
+        ['Company Size', r.company_size],
+        ['Hours Wasted/Wk', r.hours_wasted],
+        ['Demo Requested', r.demo_requested],
+        ['Decision Authority', r.decision_authority],
+        ['Timeline', r.timeline],
+        ['Actual Cohort', r.actual_cohort || 'Not provided'],
+      ].map(([k,v])=>`
+        <div class="modal-field-item">
+          <div class="modal-field-key">${k}</div>
+          <div class="modal-field-val">${v||'—'}</div>
+        </div>`).join('')}
+    </div>`;
+  Modal.open('detailModal');
+}
+
+function downloadCSV() {
+  if(!allResults.length){Toast.show('No results to export','error');return;}
+  const headers = ['id','company_name','predicted_cohort','confidence','prob_hot','prob_warm','prob_cold','industry','company_size','annual_revenue','location','timeline'];
+  const rows = allResults.map(r=>headers.map(h=>`"${r[h]??''}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'leadzen_results.csv'; a.click();
+  Toast.show('CSV exported', 'success');
+}
+
+function clearResults() {
+  document.getElementById('results-area').classList.remove('visible');
+  allResults=[]; filtered=[];
+  Toast.show('Results cleared','info');
+}
+
+function showError(m) { document.getElementById('errorText').textContent=m; document.getElementById('errorMsg').classList.add('visible'); }
+function hideError()  { document.getElementById('errorMsg').classList.remove('visible'); }
+</script>
+</body>
+</html>
